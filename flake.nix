@@ -10,7 +10,8 @@
     nixpkgs,
     ...
   }: let
-    forEachSystem = nixpkgs.lib.genAttrs nixpkgs.lib.platforms.all;
+    lib = nixpkgs.lib;
+    forEachSystem = lib.genAttrs lib.platforms.all;
 
     pkgsFor = forEachSystem (
       system:
@@ -20,10 +21,30 @@
     );
 
     packageFor = system: pkgsFor.${system}.callPackage ./nix {};
+
+    appFor = system:
+      pkgsFor.${system}.python3.pkgs.toPythonApplication (packageFor system);
+
+    withExtrasFor = system: extras: let
+      pkgs = pkgsFor.${system};
+      baseApp = appFor system;
+    in
+      pkgs.symlinkJoin {
+        name = "dooit-with-extras";
+        paths = [baseApp];
+        nativeBuildInputs = [pkgs.makeWrapper];
+        postBuild = let
+          pythonPath = lib.concatStringsSep ":" (map (pkg: "${pkg}/${pkgs.python3.sitePackages}") extras);
+        in ''
+          wrapProgram $out/bin/dooit \
+            --prefix PYTHONPATH : "${pythonPath}"
+        '';
+      };
   in {
     packages = forEachSystem (system: {
       package = packageFor system;
-      default = pkgsFor.${system}.python3.pkgs.toPythonApplication (packageFor system);
+      app = appFor system;
+      default = appFor system;
     });
 
     overlay = final: prev: {
@@ -31,23 +52,13 @@
       dooit = final.python3.pkgs.toPythonApplication final.dooitPackage;
     };
 
+    lib = forEachSystem (system: {
+      withExtras = extras: withExtrasFor system extras;
+    });
+
     homeManagerModules = {
       default = self.homeManagerModules.dooit;
       dooit = import ./nix/hm-module.nix self;
     };
-
-    devShells = forEachSystem (
-      system: let
-        pkgs = pkgsFor.${system};
-      in {
-        default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            nodejs
-            nodePackages.yarn
-            nodePackages.npm
-          ];
-        };
-      }
-    );
   };
 }
