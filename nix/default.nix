@@ -2,15 +2,12 @@
   lib,
   fetchFromGitHub,
   dooit,
-  python311,
+  python3,
   testers,
   nix-update-script,
-  extraPackages ? [ ],
+  extraPackages ? [],
 }:
-let
-  python3 = python311;
-in
-python3.pkgs.buildPythonApplication rec {
+python3.pkgs.buildPythonPackage rec {
   pname = "dooit";
   version = "3.3.3";
   pyproject = true;
@@ -22,7 +19,7 @@ python3.pkgs.buildPythonApplication rec {
     hash = "sha256-MWdih+j7spUVEWXCBzF2J/FVXK0TQ8VhrJNDhNfxpQE=";
   };
 
-  build-system = with python3.pkgs; [ poetry-core ];
+  build-system = with python3.pkgs; [poetry-core];
 
   pythonRelaxDeps = [
     "tzlocal"
@@ -30,8 +27,7 @@ python3.pkgs.buildPythonApplication rec {
     "sqlalchemy"
   ];
 
-  propagatedBuildInputs =
-    with python3.pkgs;
+  propagatedBuildInputs = with python3.pkgs;
     [
       pyperclip
       textual
@@ -61,7 +57,7 @@ python3.pkgs.buildPythonApplication rec {
       command = "HOME=$(mktemp -d) dooit --version";
     };
 
-    updateScript = nix-update-script { };
+    updateScript = nix-update-script {};
   };
 
   meta = with lib; {
